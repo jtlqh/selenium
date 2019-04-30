@@ -23,7 +23,7 @@ def date_mapper(input_value, input_key):
 # Windows users need to specify the path to chrome driver you just downloaded.
 # You need to unzip the zipfile first and move the .exe file to any folder you want.
 # driver = webdriver.Chrome(r'path\to\where\you\download\the\chromedriver.exe')
-driver = webdriver.Chrome(r'C:\Users\jtlqh\bootcamp\python\chromedriver.exe')
+driver = webdriver.Chrome(r'C:\chromedriver.exe')
 
 driver.get("https://www.verizonwireless.com/smartphones")
 
