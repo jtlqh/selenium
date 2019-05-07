@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from db import Review, Product
+from db import Review, Product, Review_summary
 import time, datetime
 import re
 
@@ -34,7 +34,7 @@ products = [''] * product_size
 for n in range(product_size):
         products[n] = driver.find_element_by_xpath('//div[@class="tile-outer  displayFlex rowWrap"]/div[{}]'.format(n+1)).get_attribute('id')
 
-
+# browse earch smart phone page
 for i in range(product_size):
 #for i in range(1):
     #print(products[i])    
@@ -47,14 +47,14 @@ for i in range(product_size):
     strings = wait_event.until(EC.presence_of_all_elements_located((By.XPATH,
         '//li[@class="listStyleTypeNone displayInlineBlock"]')))
     brand = strings[2].find_element_by_xpath('./a/span').text
-    print(brand)
+    #print(brand)
 
     # some phones do not have any reivews, skip review and go back to smartphone page
-    try:
-        num_reviews = driver.find_element_by_xpath('//span[@class="padLeft6 cursorPointer"]').text
-        num_reviews = int(re.findall('\d+', num_reviews)[0])
-        print('total reviews {}'.format(num_reviews))
-    except:
+    
+    num_reviews = driver.find_element_by_xpath('//span[@class="padLeft6 cursorPointer"]').text
+    num_reviews = int(re.findall('\d+', num_reviews)[0])
+    print('total reviews {}'.format(num_reviews))
+    if num_reviews == 0:
         driver.get("https://www.verizonwireless.com/smartphones")
         continue
 
@@ -65,7 +65,7 @@ for i in range(product_size):
 
     skuId = driver.find_element_by_xpath('//span[@class="marginLeftAuto  color_000 NHaasDS55Rg fontSize_10"]').text
     skuId = skuId.split()[1]
-    print(skuId)
+    #print(skuId)
 
     # colors
     #wait_event = WebDriverWait(driver, 10)
@@ -141,13 +141,38 @@ for i in range(product_size):
                 spec_value    = spec_values[spc_cnt],
                 )                
             item.save()
-            
-
+    
     # Click review button to go to the review section
     review_button = driver.find_element_by_id('reviewsLink')
     review_button.click()
 
-       
+    #overall review
+    if num_reviews >0:
+        overall_elm = overall_elm = driver.find_element_by_xpath('.//div[@class=" row noSideMargin deviceReviews border_bottomBlack  padTop10 padBottom24"]')
+        overall_text = re.findall(r'[\d.]+', overall_elm.find_element_by_xpath('.//div[@class="col-xs-6 noSidePad pad5"]').text)
+        rating_overall = overall_text[0]
+        rating_num = overall_text[-1]
+        sub_reviews = overall_elm.find_element_by_xpath('.//div[@class="col-xs-6 noSidePad"]')
+        sub_list = re.findall('[.\d]+', sub_reviews.text)
+        design = sub_list[0]
+        feature = sub_list[1]
+        storage = sub_list[2]
+        display = sub_list[3]
+        batterylife = sub_list[4]
+
+        item = Review_summary(
+            skuId  = skuId,
+            design = design,
+            feature = feature,
+            storage = storage,
+            display = display,
+            batterylife = batterylife
+            )                
+        item.save()
+    else:
+        driver.get("https://www.verizonwireless.com/smartphones/") 
+
+    
     for page in range(num_reviews//10 + 1):  # 10 reviews per page, exampe 83 reviews needs 9 pages
     #for page in range(1):
         try:
@@ -190,11 +215,11 @@ for i in range(product_size):
                 time_dict = dict(date_mapper(amount, unit) for amount, unit in parsed_s)            
                 dt = datetime.timedelta(**time_dict)
                 date_published = datetime.datetime.now() - dt
-                #    print('date_published = {}'.format(date_published))
+                #print('date_published = ', date_published)
                 rating = review.find_element_by_xpath(
                     './/span[@class="positionAbsolute top0 left0 overflowHidden color_000"]').get_attribute('style')
                 rating = int(re.findall('\d+', rating)[0])/20
-                #    print('rating = {}'.format(rating))
+                #print('rating = ', rating)
 
                 # some reviews do not have recommending check box, trying to access the element will got an exception
                 try:
@@ -209,6 +234,7 @@ for i in range(product_size):
                     './/button[@class="border_grayThree NHaasDS55Rg fontSize_12 height48 width100p negativeReviewFeedBack"]/span').text
                 unhelpful = int(re.findall('\d+', unhelpful)[0])
                 # if saving data to mysql triggers exception error, skip this data row
+                #print('helpful, unhelpful', helpful, unhelpful)
                 try:
                     current = Review(
                         store          = 'verizon',
